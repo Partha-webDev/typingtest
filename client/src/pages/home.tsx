@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Keyboard } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Keyboard, Timer } from "lucide-react";
 import TypingTest from "@/components/typing-test";
+import TimedTest from "@/components/timed-test";
 
 export default function Home() {
   return (
@@ -15,7 +17,26 @@ export default function Home() {
 
         <Card className="w-full">
           <CardContent className="pt-6">
-            <TypingTest />
+            <Tabs defaultValue="practice" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="practice" className="gap-2">
+                  <Keyboard className="h-4 w-4" />
+                  Practice Mode
+                </TabsTrigger>
+                <TabsTrigger value="timed" className="gap-2">
+                  <Timer className="h-4 w-4" />
+                  Timed Test
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="practice">
+                <TypingTest />
+              </TabsContent>
+
+              <TabsContent value="timed">
+                <TimedTest />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
