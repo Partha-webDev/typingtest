@@ -1,11 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
-import { calculateStats } from "@/lib/typing-utils";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Timer } from "lucide-react";
-import ResultsDisplay from "./results-display";
+import { calculateStats } from "@/lib/typing-utils";
 import type { Sentence } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 
 export default function TimedTest() {
   const [input, setInput] = useState("");
@@ -13,7 +10,11 @@ export default function TimedTest() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [stats, setStats] = useState({ wpm: 0, accuracy: 100 });
+  const [stats, setStats] = useState({
+    wpm: 0,
+    charsPerMin: 0,
+    accuracy: 100,
+  });
   const [totalTyped, setTotalTyped] = useState(0);
   const [totalCorrect, setTotalCorrect] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -36,22 +37,26 @@ export default function TimedTest() {
 
   useEffect(() => {
     if (timeLeft === 0) {
-      // Calculate final stats
       const finalWPM = (totalTyped / 5) * (60 / 60); // words per minute
+      const finalCharsPerMin = totalTyped * (60 / 60); // characters per minute
       const finalAccuracy = (totalCorrect / totalTyped) * 100;
-      setStats({ wpm: finalWPM, accuracy: finalAccuracy });
+      setStats({
+        wpm: finalWPM,
+        charsPerMin: finalCharsPerMin,
+        accuracy: finalAccuracy,
+      });
     }
   }, [timeLeft, totalTyped, totalCorrect]);
 
   const handleInput = (value: string) => {
     if (!isStarted || timeLeft === 0) return;
-    
+
     if (!startTime) {
       setStartTime(Date.now());
     }
-    
+
     setInput(value);
-    
+
     // Count total characters typed and correct characters
     const newCorrect = value.split('').filter((char, idx) => char === currentSentence[idx]).length;
     setTotalCorrect(prev => prev + (newCorrect - (value.length - 1 >= 0 ? value.length - 1 : 0)));
@@ -72,6 +77,7 @@ export default function TimedTest() {
     setTotalTyped(0);
     setTotalCorrect(0);
     setCurrentIndex(0);
+    setStats({ wpm: 0, charsPerMin: 0, accuracy: 100 });
     inputRef.current?.focus();
   };
 
@@ -79,61 +85,79 @@ export default function TimedTest() {
     return <div>Loading...</div>;
   }
 
+  const circleRadius = 35;
+  const circumference = 2 * Math.PI * circleRadius;
+  const strokeDashoffset = ((60 - timeLeft) / 60) * circumference;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-2xl font-bold text-primary">
-          {timeLeft}s
+    <div className="space-y-8">
+      <div className="flex justify-center items-center gap-16">
+        {/* Timer */}
+        <div className="relative w-24 h-24">
+          <svg className="w-full h-full -rotate-90">
+            <circle
+              cx="48"
+              cy="48"
+              r={circleRadius}
+              className="fill-none stroke-muted"
+              strokeWidth="4"
+            />
+            <circle
+              cx="48"
+              cy="48"
+              r={circleRadius}
+              className="fill-none stroke-primary"
+              strokeWidth="4"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold">{timeLeft}</div>
+              <div className="text-xs text-muted-foreground">seconds</div>
+            </div>
+          </div>
         </div>
-        {!isStarted && (
-          <Button onClick={startTest} className="gap-2">
-            <Timer className="h-4 w-4" />
-            Start Test
+
+        {/* Stats */}
+        <div className="flex gap-8">
+          <div className="text-center">
+            <div className="text-4xl font-bold">{Math.round(stats.wpm)}</div>
+            <div className="text-sm text-muted-foreground">words/min</div>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold">{Math.round(stats.charsPerMin)}</div>
+            <div className="text-sm text-muted-foreground">chars/min</div>
+          </div>
+          <div className="text-center">
+            <div className="text-4xl font-bold">{Math.round(stats.accuracy)}</div>
+            <div className="text-sm text-muted-foreground">% accuracy</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {!isStarted ? (
+          <Button
+            onClick={startTest}
+            className="w-full text-lg py-8"
+            variant="outline"
+          >
+            Start typing
           </Button>
+        ) : (
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => handleInput(e.target.value)}
+            className="w-full h-24 p-4 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/5"
+            placeholder={timeLeft > 0 ? currentSentence : "Test completed!"}
+            disabled={timeLeft === 0}
+          />
         )}
       </div>
-
-      <div className="text-xl font-medium leading-relaxed break-words">
-        {currentSentence.split("").map((char, idx) => {
-          const inputChar = input[idx];
-          const isCorrect = inputChar === char;
-          const isCurrent = idx === input.length;
-          
-          return (
-            <span
-              key={idx}
-              className={`${
-                inputChar === undefined
-                  ? "text-muted-foreground"
-                  : isCorrect
-                  ? "text-green-500"
-                  : "text-red-500 bg-red-100"
-              } ${isCurrent ? "border-b-2 border-primary" : ""}`}
-            >
-              {char}
-            </span>
-          );
-        })}
-      </div>
-
-      <textarea
-        ref={inputRef}
-        value={input}
-        onChange={(e) => handleInput(e.target.value)}
-        className="w-full h-24 p-4 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-        placeholder={isStarted ? "Start typing..." : "Click 'Start Test' to begin"}
-        disabled={!isStarted || timeLeft === 0}
-      />
-
-      {timeLeft === 0 && (
-        <div className="space-y-4">
-          <ResultsDisplay wpm={stats.wpm} accuracy={stats.accuracy} />
-          <Button onClick={startTest} variant="outline" className="w-full gap-2">
-            <Timer className="h-4 w-4" />
-            Try Again
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
