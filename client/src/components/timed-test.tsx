@@ -37,9 +37,9 @@ export default function TimedTest() {
 
   useEffect(() => {
     if (timeLeft === 0) {
-      const finalWPM = (totalTyped / 5) * (60 / 60); // words per minute
-      const finalCharsPerMin = totalTyped * (60 / 60); // characters per minute
-      const finalAccuracy = (totalCorrect / totalTyped) * 100;
+      const finalWPM = (totalTyped / 5); // words per minute (already multiplied by 60/60)
+      const finalCharsPerMin = totalTyped; // characters per minute (already per minute)
+      const finalAccuracy = totalTyped > 0 ? (totalCorrect / totalTyped) * 100 : 100;
       setStats({
         wpm: finalWPM,
         charsPerMin: finalCharsPerMin,
@@ -57,10 +57,15 @@ export default function TimedTest() {
 
     setInput(value);
 
-    // Count total characters typed and correct characters
-    const newCorrect = value.split('').filter((char, idx) => char === currentSentence[idx]).length;
-    setTotalCorrect(prev => prev + (newCorrect - (value.length - 1 >= 0 ? value.length - 1 : 0)));
-    setTotalTyped(prev => prev + 1);
+    // Update total typed characters
+    if (value.length > input.length) { // Only count new characters
+      setTotalTyped(prev => prev + 1);
+
+      // Check if the latest character is correct
+      if (value[value.length - 1] === currentSentence[value.length - 1]) {
+        setTotalCorrect(prev => prev + 1);
+      }
+    }
 
     // Move to next sentence if current is completed
     if (value === currentSentence) {
@@ -139,6 +144,30 @@ export default function TimedTest() {
       </div>
 
       <div className="space-y-4">
+        {/* Display the current sentence with character feedback */}
+        <div className="text-xl font-medium leading-relaxed break-words">
+          {currentSentence.split("").map((char, idx) => {
+            const inputChar = input[idx];
+            const isCorrect = inputChar === char;
+            const isCurrent = idx === input.length;
+
+            return (
+              <span
+                key={idx}
+                className={`${
+                  inputChar === undefined
+                    ? "text-muted-foreground"
+                    : isCorrect
+                    ? "text-green-500"
+                    : "text-red-500 bg-red-100"
+                } ${isCurrent ? "border-b-2 border-primary" : ""}`}
+              >
+                {char}
+              </span>
+            );
+          })}
+        </div>
+
         {!isStarted ? (
           <Button
             onClick={startTest}
@@ -153,8 +182,9 @@ export default function TimedTest() {
             value={input}
             onChange={(e) => handleInput(e.target.value)}
             className="w-full h-24 p-4 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/5"
-            placeholder={timeLeft > 0 ? currentSentence : "Test completed!"}
+            placeholder={timeLeft > 0 ? "Start typing..." : "Test completed!"}
             disabled={timeLeft === 0}
+            autoFocus
           />
         )}
       </div>
